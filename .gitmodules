@@ -1,3 +1,4 @@
 [submodule "zydis-c"]
 	path = zydis-c
-	url = https://github.com/zyantific/zydis.git
+	url = https://github.com/th0rex/zydis-1.git
+	branch = feature/userdata-in-callbacks
