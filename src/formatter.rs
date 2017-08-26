@@ -112,7 +112,7 @@ impl Buffer {
 
         let (buffer_slice, string_slice) = unsafe {
             (
-                slice::from_raw_parts_mut(*self.buffer,len),
+                slice::from_raw_parts_mut(*self.buffer, len),
                 slice::from_raw_parts(s.as_ptr() as *const c_char, len),
             )
         };
@@ -299,12 +299,7 @@ impl Formatter {
             let orig_func = &mut mem::transmute((*ptr).original_function);
 
             check!(
-                ZydisFormatterSetHookEx(
-                    &mut self.formatter,
-                    hookd_id as _,
-                    orig_func,
-                    ptr as _
-                ),
+                ZydisFormatterSetHookEx(&mut self.formatter, hookd_id as _, orig_func, ptr as _),
                 ()
             )
         }
