@@ -4,8 +4,8 @@ use gen::*;
 use status::ZydisResult;
 use std::mem;
 use std::ffi::CStr;
-use std::os::raw::c_void;
-
+use std::os::raw::{c_char, c_void};
+use std::slice;
 
 #[derive(Clone)]
 pub enum Hook {
@@ -92,6 +92,44 @@ impl Hook {
     }
 }
 
+pub struct Buffer {
+    buffer: *mut *mut c_char,
+    buffer_len: usize,
+}
+
+impl Buffer {
+    unsafe fn from_raw(buffer: *mut *mut c_char, buffer_len: usize) -> Buffer {
+        Buffer {
+            buffer,
+            buffer_len,
+        }
+    }
+
+    fn append<T: AsRef<str>>(&mut self, s: T) -> ZydisResult<()> {
+        let s = s.as_ref();
+        let len = s.len();
+
+        if len >= self.buffer_len {
+            return Err(ZYDIS_STATUS_INSUFFICIENT_BUFFER_SIZE);
+        }
+
+        let (buffer_slice, string_slice) = unsafe {
+            (slice::from_raw_parts_mut(*self.buffer, self.buffer_len),
+             slice::from_raw_parts(s.as_ptr() as *const c_char, len))
+        };
+        buffer_slice.clone_from_slice(string_slice);
+        self.buffer_len -= len;
+        unsafe {
+            *self.buffer = (*self.buffer).offset(len as _);
+        }
+
+        Ok(())
+    }
+}
+
+pub type WrappedFormatFunc<T> = Box<Fn(&Formatter, &mut Buffer, &ZydisDecodedInstruction, &mut T, ZydisFormatterFormatFunc) -> ZydisResult<()>>;
+
+#[repr(C)]
 pub struct Formatter {
     formatter: ZydisFormatter,
 }
@@ -182,6 +220,32 @@ impl Formatter {
         }
     }
 
+    pub fn set_wrapped_hook<T>(&mut self, func: WrappedFormatFunc<T>, context: T) -> ZydisResult<()> {
+        extern "C" fn format_func_wrapper<T>(formatter: *const ZydisFormatter, buffer: *mut *mut c_char, buffer_len: usize, instruction: *mut ZydisDecodedInstruction, context: *mut c_void)
+            -> ZydisStatus {
+            unsafe {
+                let formatter = & *(formatter as *const Formatter);
+                let mut wrapper = &mut *(context as *mut ContextWrapper<T>);
+                let mut buffer = Buffer::from_raw(buffer, buffer_len);
+                match (wrapper.func)(formatter, &mut buffer, &*instruction, &mut wrapper.context, wrapper.original_function) {
+                    Ok(_) => ZYDIS_STATUS_SUCCESS as _,
+                    Err(e) => e as _,
+                }
+            }
+        }
+
+        self.set_hook_ex_wrapped(
+            Hook::FuncFormatInstruction(Some(format_func_wrapper::<T>)),
+            ContextWrapper{
+                context,
+                original_function: None,
+                func,
+            }
+        );
+
+        Ok(())
+    }
+
     /// Sets a hook, allowing for customizations along the formatting process.
     pub fn set_hook(&mut self, hook: Hook) -> ZydisResult<Hook> {
         unsafe {
@@ -197,7 +261,7 @@ impl Formatter {
 
     pub fn set_hook_ex<T>(&mut self, hook: Hook, context: T) -> ZydisResult<Hook> {
         unsafe {
-            let cb = hook.to_raw();
+            let mut cb = hook.to_raw();
             let hook_id = hook.to_id();
             let data = Box::new(context);
             let ptr = Box::into_raw(data);
@@ -208,4 +272,25 @@ impl Formatter {
             )
         }
     }
+
+    fn set_hook_ex_wrapped<T>(&mut self, hook: Hook, mut wrapped: ContextWrapper<T>) -> ZydisResult<()> {
+        unsafe {
+            wrapped.original_function = mem::transmute(hook.to_raw());
+            let hookd_id = hook.to_id();
+            let data = Box::new(wrapped);
+            let ptr = Box::into_raw(data);
+
+            check!(
+                ZydisFormatterSetHookEx(&mut self.formatter, hookd_id as _,
+                      (&mut mem::transmute::<_, *const c_void>((*ptr).original_function)) as _, ptr as _),
+                      ()
+            )
+        }
+    }
 }
+
+    struct ContextWrapper<T> {
+        context: T,
+        original_function: ZydisFormatterFormatFunc,
+        func: WrappedFormatFunc<T>,
+    }
