@@ -61,7 +61,16 @@ fn build_bindings(out_path: PathBuf) {
 }
 
 fn main() {
-    println!("cargo:rerun-if-changed=zydis-c");
+    println!("cargo:rerun-if-changed={}/Decoder.c", ZYDIS_SRC_PATH);
+    println!("cargo:rerun-if-changed={}/DecoderData.c", ZYDIS_SRC_PATH);
+    println!("cargo:rerun-if-changed={}/Encoder.c", ZYDIS_SRC_PATH);
+    println!("cargo:rerun-if-changed={}/EncoderData.c", ZYDIS_SRC_PATH);
+    println!("cargo:rerun-if-changed={}/Formatter.c", ZYDIS_SRC_PATH);
+    println!("cargo:rerun-if-changed={}/Mnemonic.c", ZYDIS_SRC_PATH);
+    println!("cargo:rerun-if-changed={}/Register.c", ZYDIS_SRC_PATH);
+    println!("cargo:rerun-if-changed={}/SharedData.c", ZYDIS_SRC_PATH);
+    println!("cargo:rerun-if-changed={}/Utils.c", ZYDIS_SRC_PATH);
+    println!("cargo:rerun-if-changed={}/Zydis.c", ZYDIS_SRC_PATH);
 
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
 
