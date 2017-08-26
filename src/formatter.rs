@@ -194,4 +194,18 @@ impl Formatter {
             )
         }
     }
+
+    pub fn set_hook_ex<T>(&mut self, hook: Hook, context: T) -> ZydisResult<Hook> {
+        unsafe {
+            let cb = hook.to_raw();
+            let hook_id = hook.to_id();
+            let data = Box::new(context);
+            let ptr = Box::into_raw(data);
+
+            check!(
+                ZydisFormatterSetHookEx(&mut self.formatter, hook_id as _, &mut cb, ptr as _),
+                Hook::from_raw(hook_id, cb)
+            )
+        }
+    }
 }
