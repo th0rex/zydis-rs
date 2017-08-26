@@ -102,7 +102,7 @@ impl Buffer {
         Buffer { buffer, buffer_len }
     }
 
-    fn append<T: AsRef<str>>(&mut self, s: T) -> ZydisResult<()> {
+    pub fn append<T: AsRef<str>>(&mut self, s: T) -> ZydisResult<()> {
         let s = s.as_ref();
         let len = s.len();
 
@@ -235,7 +235,7 @@ impl Formatter {
             context: *mut c_void,
         ) -> ZydisStatus {
             let formatter = &*(formatter as *const Formatter);
-            let mut wrapper = &mut *(context as *mut ContextWrapper<T>);
+            let wrapper = &mut *(context as *mut ContextWrapper<T>);
             let mut buffer = Buffer::from_raw(buffer, buffer_len);
             match (wrapper.func)(
                 formatter,
@@ -256,9 +256,7 @@ impl Formatter {
                 original_function: None,
                 func,
             },
-        );
-
-        Ok(())
+        )
     }
 
     /// Sets a hook, allowing for customizations along the formatting process.
