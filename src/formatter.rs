@@ -227,27 +227,25 @@ impl Formatter {
         func: WrappedFormatFunc<T>,
         context: T,
     ) -> ZydisResult<()> {
-        extern "C" fn format_func_wrapper<T>(
+        unsafe extern "C" fn format_func_wrapper<T>(
             formatter: *const ZydisFormatter,
             buffer: *mut *mut c_char,
             buffer_len: usize,
             instruction: *mut ZydisDecodedInstruction,
             context: *mut c_void,
         ) -> ZydisStatus {
-            unsafe {
-                let formatter = &*(formatter as *const Formatter);
-                let mut wrapper = &mut *(context as *mut ContextWrapper<T>);
-                let mut buffer = Buffer::from_raw(buffer, buffer_len);
-                match (wrapper.func)(
-                    formatter,
-                    &mut buffer,
-                    &*instruction,
-                    &mut wrapper.context,
-                    wrapper.original_function,
-                ) {
-                    Ok(_) => ZYDIS_STATUS_SUCCESS as _,
-                    Err(e) => e as _,
-                }
+            let formatter = &*(formatter as *const Formatter);
+            let mut wrapper = &mut *(context as *mut ContextWrapper<T>);
+            let mut buffer = Buffer::from_raw(buffer, buffer_len);
+            match (wrapper.func)(
+                formatter,
+                &mut buffer,
+                &*instruction,
+                &mut wrapper.context,
+                wrapper.original_function,
+            ) {
+                Ok(_) => ZYDIS_STATUS_SUCCESS as _,
+                Err(e) => e as _,
             }
         }
 
