@@ -51,21 +51,21 @@ impl Hook {
     pub unsafe fn to_raw(&self) -> *const c_void {
         use self::Hook::*;
         match *self {
-            FuncPre(ref x) => mem::transmute(x),
-            FuncPost(ref x) => mem::transmute(x),
-            FuncFormatInstruction(ref x) => mem::transmute(x),
-            FuncPrintPrefixes(ref x) => mem::transmute(x),
-            FuncPrintMnemonic(ref x) => mem::transmute(x),
-            FuncFormatOperandReg(ref x) => mem::transmute(x),
-            FuncFormatOperandMem(ref x) => mem::transmute(x),
-            FuncFormatOperandPtr(ref x) => mem::transmute(x),
-            FuncFormatOperandImm(ref x) => mem::transmute(x),
-            FuncPrintOperandsize(ref x) => mem::transmute(x),
-            FuncPrintSegment(ref x) => mem::transmute(x),
-            FuncPrintDecorator(ref x) => mem::transmute(x),
-            FuncPrintDisplacement(ref x) => mem::transmute(x),
-            FuncPrintImmediate(ref x) => mem::transmute(x),
-            FuncPrintAddress(ref x) => mem::transmute(x),
+            FuncPre(x) => mem::transmute(x),
+            FuncPost(x) => mem::transmute(x),
+            FuncFormatInstruction(x) => mem::transmute(x),
+            FuncPrintPrefixes(x) => mem::transmute(x),
+            FuncPrintMnemonic(x) => mem::transmute(x),
+            FuncFormatOperandReg(x) => mem::transmute(x),
+            FuncFormatOperandMem(x) => mem::transmute(x),
+            FuncFormatOperandPtr(x) => mem::transmute(x),
+            FuncFormatOperandImm(x) => mem::transmute(x),
+            FuncPrintOperandsize(x) => mem::transmute(x),
+            FuncPrintSegment(x) => mem::transmute(x),
+            FuncPrintDecorator(x) => mem::transmute(x),
+            FuncPrintDisplacement(x) => mem::transmute(x),
+            FuncPrintImmediate(x) => mem::transmute(x),
+            FuncPrintAddress(x) => mem::transmute(x),
         }
     }
 
@@ -112,7 +112,7 @@ impl Buffer {
 
         let (buffer_slice, string_slice) = unsafe {
             (
-                slice::from_raw_parts_mut(*self.buffer, self.buffer_len),
+                slice::from_raw_parts_mut(*self.buffer,len),
                 slice::from_raw_parts(s.as_ptr() as *const c_char, len),
             )
         };
@@ -296,12 +296,13 @@ impl Formatter {
             let hookd_id = hook.to_id();
             let data = Box::new(wrapped);
             let ptr = Box::into_raw(data);
+            let orig_func = &mut mem::transmute((*ptr).original_function);
 
             check!(
                 ZydisFormatterSetHookEx(
                     &mut self.formatter,
                     hookd_id as _,
-                    (&mut mem::transmute::<_, *const c_void>((*ptr).original_function)) as _,
+                    orig_func,
                     ptr as _
                 ),
                 ()
